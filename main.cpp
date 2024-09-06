@@ -17,27 +17,35 @@ void condicion_start(void);
 void condicion_stop (void);
 void send_byte (char data);
 void send_data (int number);
+void counter_int(void); // Tarea del hilo 
 
 
 //hilos
+Thread T_counter(osPriorityNormal, 4096, NULL, NULL);
 
 //variables globales 
+char digit[4]={0,0,0,0};
+int c = 0;
 
 //pines 
 DigitalOut  sclk (D2);
 DigitalInOut dio (D3);
+DigitalOut led(LED1);
 
 const char digitToSegment[10] = { 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D,0x07,0x7F,0x6F};
-                               // 0X81,	0XCf,	0X92,	0X86,	0XCC,	0XA4,	0XA0,	0X8F,	0X80,	0X84
+                       
 int main()
 {
+    // Inicializar variables 
+    c=0;
 
+    //arrancar los hilos 
+    T_counter.start(counter_int);
+    printf("Arranque del programa\n\r");
+    send_data(0);
     while (true) {
-        for (int i = 0; i <= 9999; i++) {
-            send_data(i);
-            ThisThread::sleep_for(100ms); // Espera 1 segundo antes de mostrar el siguiente número
-
-            }
+        led = !led;
+        ThisThread::sleep_for(1s);
     }
 }
 
@@ -87,6 +95,7 @@ void send_byte(char data)
 
 void send_data(int number)
 {
+    
     condicion_start();
     send_byte(escritura);
     condicion_stop();
@@ -94,15 +103,35 @@ void send_data(int number)
     send_byte(dir_display);
     
     // Descomponer el número en dígitos y enviar al display
+    
     for (int i = 0; i < 4; i++)
     {
-        int digit = number % 10;
-        send_byte(digitToSegment[digit]);
+        digit[i] = number % 10;
         number /= 10;
     }
+    //Enviar los digitos desde el mas significativo al menos 
+   for(int j=3; j> -1 ; j--)
+    {
+         send_byte(digitToSegment[digit[j]]); 
+    }
+
+
     condicion_stop();
     condicion_start();
-    send_byte(poner_brillo + 1);
+    send_byte(poner_brillo + 5);
     condicion_stop();
 
+}
+
+void counter_int(void)
+{   
+    while(true)
+    {
+    
+     if (c == 9999) c=0;
+     printf("%04u\n\r", c);
+     send_data(c);
+     c++;
+     ThisThread::sleep_for(10ms);
+    }
 }
